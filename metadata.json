@@ -1,0 +1,8 @@
+{
+  "name": "Remix GPS Case Tracker",
+  "description": "A secure, web-based crime reporting and case tracking system for the Ghana Police Service.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

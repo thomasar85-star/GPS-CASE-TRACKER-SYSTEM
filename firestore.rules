@@ -1,0 +1,348 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Pillar 0: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isVerified() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return isVerified() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'thomasar85@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidDutyRole(r) {
+      return r is string && r in ['counter_nco', 'station_officer', 'investigator', 'senior_officer'];
+    }
+
+    function isValidOffenceCategory(cat) {
+      return cat is string && cat in [
+        'theft', 'robbery', 'assault', 'fraud_scam', 'domestic_violence',
+        'narcotics', 'cybercrime', 'homicide', 'traffic_infraction',
+        'unlawful_damage', 'other'
+      ];
+    }
+
+    function isValidCaseStatus(st) {
+      return st is string && st in [
+        'lodged', 'under_investigation', 'suspect_arrested',
+        'forwarded_to_court', 'bail_granted', 'closed_withdrawn'
+      ];
+    }
+
+    function isValidPriority(p) {
+      return p is string && p in ['low', 'standard', 'urgent', 'critical'];
+    }
+
+    // --- Validation Blueprints (Anti-Update-Gap) ---
+    function isValidAdminMarker(data) {
+      return data.keys().hasAll(['uid', 'grantedAt'])
+        && data.keys().hasOnly(['uid', 'grantedAt'])
+        && isValidId(data.uid)
+        && data.grantedAt is timestamp;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+          'uid', 'email', 'name', 'badgeId', 'rank',
+          'stationId', 'stationName', 'dutyRole', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'uid', 'email', 'phone', 'name', 'badgeId', 'rank',
+          'stationId', 'stationName', 'dutyRole', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.uid)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 32))
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 160
+        && data.badgeId is string && data.badgeId.size() >= 2 && data.badgeId.size() <= 64 && data.badgeId.matches('^[A-Z0-9\\-]+$')
+        && data.rank is string && data.rank.size() >= 2 && data.rank.size() <= 100
+        && isValidId(data.stationId)
+        && data.stationName is string && data.stationName.size() >= 1 && data.stationName.size() <= 200
+        && isValidDutyRole(data.dutyRole)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidOfficerRoster(data) {
+      return data.keys().hasAll([
+          'id', 'uid', 'name', 'badgeId', 'rank',
+          'stationId', 'stationName', 'dutyRole', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'uid', 'name', 'badgeId', 'rank',
+          'stationId', 'stationName', 'dutyRole', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.uid)
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 160
+        && data.badgeId is string && data.badgeId.size() >= 2 && data.badgeId.size() <= 64 && data.badgeId.matches('^[A-Z0-9\\-]+$')
+        && data.rank is string && data.rank.size() >= 2 && data.rank.size() <= 100
+        && isValidId(data.stationId)
+        && data.stationName is string && data.stationName.size() >= 1 && data.stationName.size() <= 200
+        && isValidDutyRole(data.dutyRole)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStation(data) {
+      return data.keys().hasAll(['id', 'name', 'code', 'region', 'division', 'commander', 'createdAt'])
+        && data.keys().hasOnly(['id', 'name', 'code', 'region', 'division', 'commander', 'createdAt'])
+        && isValidId(data.id)
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 200
+        && data.code is string && data.code.size() >= 2 && data.code.size() <= 16 && data.code.matches('^[A-Z0-9]+$')
+        && data.region is string && data.region.size() >= 2 && data.region.size() <= 100
+        && data.division is string && data.division.size() >= 2 && data.division.size() <= 160
+        && data.commander is string && data.commander.size() >= 2 && data.commander.size() <= 160
+        && data.createdAt is timestamp;
+    }
+
+    function isValidCase(data) {
+      return data.keys().hasAll([
+          'id', 'createdByUid', 'docketNumber', 'offenceCategory', 'offenceTitle',
+          'incidentDateTime', 'lodgedDateTime', 'stationId', 'stationName',
+          'locationDescription', 'narrative', 'complainant', 'suspects',
+          'evidence', 'witnessStatements', 'submissions', 'status',
+          'statusUpdatedAt', 'priority', 'isSynthetic', 'updatedTimestamp',
+          'serverTimestamp', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'createdByUid', 'docketNumber', 'offenceCategory', 'offenceTitle',
+          'act29OffenceCode', 'act29Section', 'statuteCitation',
+          'incidentDateTime', 'lodgedDateTime', 'stationId', 'stationName',
+          'locationDescription', 'narrative', 'complainant', 'suspects',
+          'evidence', 'witnessStatements', 'submissions',
+          'officerInChargeId', 'officerInChargeName', 'officerInChargeBadge',
+          'status', 'statusUpdatedAt', 'priority', 'courtRecord',
+          'dispositionNotes', 'dispositionDate', 'flaggedForSeniorReview',
+          'flagReason', 'crimeScenePhotos', 'stolenPropertyPhotos',
+          'isSynthetic', 'isOfflineStaged', 'syncedAt',
+          'updatedTimestamp', 'serverTimestamp', 'syncConflictNote',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && isValidId(data.createdByUid)
+        && data.docketNumber is string && data.docketNumber.size() >= 3 && data.docketNumber.size() <= 64 && data.docketNumber.matches('^[A-Z0-9/\\-]+$')
+        && isValidOffenceCategory(data.offenceCategory)
+        && data.offenceTitle is string && data.offenceTitle.size() >= 2 && data.offenceTitle.size() <= 300
+        && (!('act29OffenceCode' in data) || (data.act29OffenceCode is string && data.act29OffenceCode.size() <= 64))
+        && (!('act29Section' in data) || (data.act29Section is string && data.act29Section.size() <= 64))
+        && (!('statuteCitation' in data) || (data.statuteCitation is string && data.statuteCitation.size() <= 256))
+        && data.incidentDateTime is string && data.incidentDateTime.size() >= 4 && data.incidentDateTime.size() <= 64
+        && data.lodgedDateTime is string && data.lodgedDateTime.size() >= 4 && data.lodgedDateTime.size() <= 64
+        && isValidId(data.stationId)
+        && data.stationName is string && data.stationName.size() >= 2 && data.stationName.size() <= 200
+        && data.locationDescription is string && data.locationDescription.size() >= 2 && data.locationDescription.size() <= 500
+        && data.narrative is string && data.narrative.size() >= 2 && data.narrative.size() <= 10000
+        && data.complainant is map
+        && data.suspects is list && data.suspects.size() <= 25 && (data.suspects.size() == 0 || data.suspects[0] is map)
+        && data.evidence is list && data.evidence.size() <= 50 && (data.evidence.size() == 0 || data.evidence[0] is map)
+        && data.witnessStatements is list && data.witnessStatements.size() <= 50 && (data.witnessStatements.size() == 0 || data.witnessStatements[0] is map)
+        && data.submissions is list && data.submissions.size() <= 100 && (data.submissions.size() == 0 || data.submissions[0] is map)
+        && (!('officerInChargeId' in data) || (data.officerInChargeId is string && data.officerInChargeId.size() <= 128))
+        && (!('officerInChargeName' in data) || (data.officerInChargeName is string && data.officerInChargeName.size() <= 160))
+        && (!('officerInChargeBadge' in data) || (data.officerInChargeBadge is string && data.officerInChargeBadge.size() <= 64))
+        && isValidCaseStatus(data.status)
+        && data.statusUpdatedAt is string && data.statusUpdatedAt.size() >= 4 && data.statusUpdatedAt.size() <= 64
+        && isValidPriority(data.priority)
+        && (!('courtRecord' in data) || data.courtRecord is map)
+        && (!('dispositionNotes' in data) || (data.dispositionNotes is string && data.dispositionNotes.size() <= 5000))
+        && (!('dispositionDate' in data) || (data.dispositionDate is string && data.dispositionDate.size() <= 64))
+        && (!('flaggedForSeniorReview' in data) || data.flaggedForSeniorReview is bool)
+        && (!('flagReason' in data) || (data.flagReason is string && data.flagReason.size() <= 500))
+        && (!('crimeScenePhotos' in data) || (data.crimeScenePhotos is list && data.crimeScenePhotos.size() <= 10 && (data.crimeScenePhotos.size() == 0 || data.crimeScenePhotos[0] is string)))
+        && (!('stolenPropertyPhotos' in data) || (data.stolenPropertyPhotos is list && data.stolenPropertyPhotos.size() <= 10 && (data.stolenPropertyPhotos.size() == 0 || data.stolenPropertyPhotos[0] is string)))
+        && data.isSynthetic is bool
+        && (!('isOfflineStaged' in data) || data.isOfflineStaged is bool)
+        && (!('syncedAt' in data) || (data.syncedAt is string && data.syncedAt.size() <= 64))
+        && data.updatedTimestamp is number
+        && data.serverTimestamp is number
+        && (!('syncConflictNote' in data) || (data.syncConflictNote is string && data.syncConflictNote.size() <= 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Action Branches for Case Updates ---
+    function isCaseProgressAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'status', 'statusUpdatedAt', 'submissions', 'officerInChargeId',
+        'officerInChargeName', 'officerInChargeBadge', 'flaggedForSeniorReview',
+        'flagReason', 'isOfflineStaged', 'syncedAt', 'updatedTimestamp',
+        'serverTimestamp', 'syncConflictNote', 'updatedAt'
+      ]);
+    }
+
+    function isCaseEvidenceAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'evidence', 'witnessStatements', 'submissions', 'crimeScenePhotos',
+        'stolenPropertyPhotos', 'statusUpdatedAt', 'isOfflineStaged',
+        'syncedAt', 'updatedTimestamp', 'serverTimestamp', 'updatedAt'
+      ]);
+    }
+
+    function isCaseSuspectAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'suspects', 'status', 'statusUpdatedAt', 'isOfflineStaged',
+        'syncedAt', 'updatedTimestamp', 'serverTimestamp', 'updatedAt'
+      ]);
+    }
+
+    function isCaseDispositionAction() {
+      return incoming().diff(existing()).affectedKeys().hasOnly([
+        'status', 'statusUpdatedAt', 'courtRecord', 'dispositionNotes',
+        'dispositionDate', 'isOfflineStaged', 'syncedAt',
+        'updatedTimestamp', 'serverTimestamp', 'updatedAt'
+      ]);
+    }
+
+    // --- Collection Rules ---
+
+    // 1. Admins registry
+    match /admins/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if isAdmin() && isValidId(userId) && isValidAdminMarker(incoming()) && incoming().uid == userId;
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // 2. Private Officer Accounts (PII Isolated)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/stations/$(incoming().stationId));
+      allow update: if isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isOwner(userId)
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'badgeId', 'rank', 'stationId', 'stationName', 'dutyRole', 'phone', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(userId);
+    }
+
+    // 3. Non-PII Officer Roster
+    match /officers/{officerId} {
+      allow get: if isValidId(officerId) && (isAdmin() || (isVerified() && existing().uid == request.auth.uid));
+      allow list: if isAdmin() || (isVerified() && resource.data.uid == request.auth.uid);
+      allow create: if isVerified()
+        && isValidId(officerId)
+        && isValidOfficerRoster(incoming())
+        && incoming().id == officerId
+        && incoming().uid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/stations/$(incoming().stationId));
+      allow update: if isValidId(officerId)
+        && isValidOfficerRoster(incoming())
+        && incoming().id == existing().id
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            isVerified()
+            && existing().uid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'badgeId', 'rank', 'stationId', 'stationName', 'dutyRole', 'updatedAt'
+            ])
+          )
+        );
+      allow delete: if isAdmin() && isValidId(officerId);
+    }
+
+    // 4. Police Station Reference Registry (Non-PII)
+    match /stations/{stationId} {
+      allow get: if isValidId(stationId) && isVerified();
+      allow list: if isVerified() && resource.data.code is string;
+      allow create: if isVerified()
+        && isValidId(stationId)
+        && isValidStation(incoming())
+        && incoming().id == stationId
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin()
+        && isValidId(stationId)
+        && isValidStation(incoming())
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt;
+      allow delete: if isAdmin() && isValidId(stationId);
+    }
+
+    // 5. Case Dockets
+    match /cases/{caseId} {
+      allow get: if isValidId(caseId) && (isAdmin() || (isVerified() && existing().createdByUid == request.auth.uid));
+      allow list: if isAdmin() || (isVerified() && resource.data.createdByUid == request.auth.uid);
+      allow create: if isVerified()
+        && isValidId(caseId)
+        && isValidCase(incoming())
+        && incoming().id == caseId
+        && incoming().createdByUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/stations/$(incoming().stationId));
+      allow update: if isVerified()
+        && isValidId(caseId)
+        && isValidCase(incoming())
+        && incoming().id == existing().id
+        && incoming().createdByUid == existing().createdByUid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (
+            existing().createdByUid == request.auth.uid
+            && existing().status != 'closed_withdrawn'
+            && (
+              isCaseProgressAction() ||
+              isCaseEvidenceAction() ||
+              isCaseSuspectAction() ||
+              isCaseDispositionAction()
+            )
+          )
+        );
+      allow delete: if isAdmin() && isValidId(caseId);
+    }
+  }
+}

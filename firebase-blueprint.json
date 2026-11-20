@@ -1,0 +1,423 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "Officer Account Profile (Private PII)",
+      "description": "Private authenticated officer account storing contact PII, isolated to the owning Firebase Auth user or admins",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 32
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "badgeId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[A-Z0-9\\-]+$"
+        },
+        "rank": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "stationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "stationName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "dutyRole": {
+          "type": "string",
+          "enum": ["counter_nco", "station_officer", "investigator", "senior_officer"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "name", "badgeId", "rank", "stationId", "stationName", "dutyRole", "createdAt", "updatedAt"]
+    },
+    "OfficerRoster": {
+      "title": "Public Officer Directory Entry (Non-PII)",
+      "description": "Non-PII officer roster record used for docket assignment and supervisory display",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "badgeId": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 64,
+          "pattern": "^[A-Z0-9\\-]+$"
+        },
+        "rank": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "stationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "stationName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "dutyRole": {
+          "type": "string",
+          "enum": ["counter_nco", "station_officer", "investigator", "senior_officer"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "uid", "name", "badgeId", "rank", "stationId", "stationName", "dutyRole", "createdAt", "updatedAt"]
+    },
+    "Station": {
+      "title": "Police Station",
+      "description": "Ghana Police Service station command division reference record",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 16,
+          "pattern": "^[A-Z0-9]+$"
+        },
+        "region": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "division": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "commander": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "code", "region", "division", "commander", "createdAt"]
+    },
+    "CaseRecord": {
+      "title": "Case Record",
+      "description": "Criminal or general case docket in the Ghana Police Service system",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "docketNumber": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[A-Z0-9/\\-]+$"
+        },
+        "offenceCategory": {
+          "type": "string",
+          "enum": [
+            "theft",
+            "robbery",
+            "assault",
+            "fraud_scam",
+            "domestic_violence",
+            "narcotics",
+            "cybercrime",
+            "homicide",
+            "traffic_infraction",
+            "unlawful_damage",
+            "other"
+          ]
+        },
+        "offenceTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 300
+        },
+        "act29OffenceCode": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "act29Section": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "statuteCitation": {
+          "type": "string",
+          "maxLength": 256
+        },
+        "incidentDateTime": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "lodgedDateTime": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "stationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "stationName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 200
+        },
+        "locationDescription": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 500
+        },
+        "narrative": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 10000
+        },
+        "complainant": {
+          "type": "object"
+        },
+        "suspects": {
+          "type": "array"
+        },
+        "evidence": {
+          "type": "array"
+        },
+        "witnessStatements": {
+          "type": "array"
+        },
+        "submissions": {
+          "type": "array"
+        },
+        "officerInChargeId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "officerInChargeName": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "officerInChargeBadge": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "lodged",
+            "under_investigation",
+            "suspect_arrested",
+            "forwarded_to_court",
+            "bail_granted",
+            "closed_withdrawn"
+          ]
+        },
+        "statusUpdatedAt": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 64
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["low", "standard", "urgent", "critical"]
+        },
+        "courtRecord": {
+          "type": "object"
+        },
+        "dispositionNotes": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "dispositionDate": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "flaggedForSeniorReview": {
+          "type": "boolean"
+        },
+        "flagReason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "crimeScenePhotos": {
+          "type": "array"
+        },
+        "stolenPropertyPhotos": {
+          "type": "array"
+        },
+        "isSynthetic": {
+          "type": "boolean"
+        },
+        "isOfflineStaged": {
+          "type": "boolean"
+        },
+        "syncedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "updatedTimestamp": {
+          "type": "number"
+        },
+        "serverTimestamp": {
+          "type": "number"
+        },
+        "syncConflictNote": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "createdByUid",
+        "docketNumber",
+        "offenceCategory",
+        "offenceTitle",
+        "incidentDateTime",
+        "lodgedDateTime",
+        "stationId",
+        "stationName",
+        "locationDescription",
+        "narrative",
+        "complainant",
+        "suspects",
+        "evidence",
+        "witnessStatements",
+        "submissions",
+        "status",
+        "statusUpdatedAt",
+        "priority",
+        "isSynthetic",
+        "updatedTimestamp",
+        "serverTimestamp",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminMarker": {
+      "title": "Admin Marker",
+      "description": "Authoritative admin membership document",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "grantedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "grantedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Private officer account profile and PII isolated to the authenticated user"
+    },
+    "/officers/{officerId}": {
+      "schema": "OfficerRoster",
+      "description": "Non-PII officer roster for station and OIC assignment"
+    },
+    "/stations/{stationId}": {
+      "schema": "Station",
+      "description": "Police station registry reference documents"
+    },
+    "/cases/{caseId}": {
+      "schema": "CaseRecord",
+      "description": "Criminal and general case dockets synchronized with Firestore"
+    },
+    "/admins/{userId}": {
+      "schema": "AdminMarker",
+      "description": "Authoritative admin privilege records"
+    }
+  }
+}
